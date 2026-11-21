@@ -89,11 +89,22 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, target, onClose 
   const itemClass =
     'flex w-full items-center justify-between gap-3 rounded-md px-2.5 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700/70 transition-colors';
 
+  // Keep an existing multi-selection if the clicked node is part of it; otherwise select just that node
+  const ensureNodeInSelection = () => {
+    if (!node) return;
+    if (!useEditorStore.getState().selectedNodeIds.includes(node.id)) {
+      setSelection([node.id]);
+    }
+  };
+
   const handleDuplicateNode = () => {
     if (!node) return;
-    setSelection([node.id]);
+    // Duplicating must not overwrite what the user has copied to the app clipboard
+    const previousClipboard = useEditorStore.getState().clipboard;
+    ensureNodeInSelection();
     copySelection();
     paste(24, 24);
+    useEditorStore.setState({ clipboard: previousClipboard });
     onClose();
   };
 
@@ -102,6 +113,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, target, onClose 
       ref={menuRef}
       style={{ left: pos.left, top: pos.top }}
       className="fixed z-50 min-w-[220px] rounded-lg border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-800"
+      onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
       onContextMenu={(e) => e.preventDefault()}
     >
       {target.kind === 'canvas' && (
@@ -321,7 +334,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, target, onClose 
             type="button"
             className={itemClass}
             onClick={() => {
-              setSelection([node.id]);
+              ensureNodeInSelection();
               cutSelection();
               onClose();
             }}
@@ -335,7 +348,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, target, onClose 
             type="button"
             className={itemClass}
             onClick={() => {
-              setSelection([node.id]);
+              ensureNodeInSelection();
               copySelection();
               onClose();
             }}
@@ -358,7 +371,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, target, onClose 
             type="button"
             className={`${itemClass} text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50`}
             onClick={() => {
-              setSelection([node.id]);
+              ensureNodeInSelection();
               deleteSelection();
               onClose();
             }}

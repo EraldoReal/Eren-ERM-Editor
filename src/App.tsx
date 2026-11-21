@@ -44,6 +44,15 @@ export const App: React.FC = () => {
   const toast = useEditorStore((s) => s.toast);
   const clearToast = useEditorStore((s) => s.clearToast);
 
+  useEffect(() => {
+    if (!toast) return;
+    const delay = toast.type === 'error' ? 4500 : 2800;
+    const timer = window.setTimeout(() => {
+      clearToast();
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [toast, clearToast]);
+
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -205,9 +214,11 @@ export const App: React.FC = () => {
             setHelpTab('download');
             setHelpOpen(true);
             break;
+          case 'app-update':
           case 'help-update':
             setUpdateOpen(true);
             break;
+          case 'app-about':
           case 'help-about':
             setHelpTab('imprint');
             setHelpOpen(true);
@@ -448,7 +459,7 @@ export const App: React.FC = () => {
           <WorkspaceCanvas darkMode={isDark} />
 
           {toast && (
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3.5 py-2 rounded-lg bg-slate-900/95 dark:bg-slate-800/95 text-white text-xs font-medium shadow-lg border border-slate-700">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3.5 py-2 rounded-lg bg-slate-900/95 dark:bg-slate-800/95 text-white text-xs font-medium shadow-lg border border-slate-700">
               {toast.type === 'error' ? (
                 <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
               ) : toast.type === 'info' ? (
