@@ -841,7 +841,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   Changelog
                 </span>
                 <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-[11px] text-slate-600 dark:text-slate-300">
-                  v1.0.1
+                  v1.0.2
                 </span>
                 <span className="hidden sm:inline text-slate-400 dark:text-slate-500">
                   — {isDe ? 'Versionshinweise & Änderungen anzeigen' : 'Show release notes & changes'}
@@ -855,11 +855,47 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <div className="px-4 pb-4 pt-2 border-t border-slate-200 dark:border-slate-800 space-y-4 text-xs text-slate-600 dark:text-slate-300">
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold text-slate-900 dark:text-white">v1.0.1</span>
+                  <span className="font-mono font-bold text-slate-900 dark:text-white">v1.0.2</span>
                   <span className="text-[11px] font-mono text-slate-400">2026-11-21</span>
                   <span className="text-[11px] px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900">
                     {isDe ? 'Aktuell' : 'Latest'}
                   </span>
+                </div>
+                <ul className="list-disc list-inside space-y-1 leading-relaxed">
+                  {isDe ? (
+                    <>
+                      <li>
+                        <strong>24h-Link-Teilen (E2E-verschlüsselt):</strong> Unter{' '}
+                        <em>Datei → Link erstellen (24h)</em> &amp; <em>Link öffnen…</em> lassen
+                        sich ERM-Modelle clientseitig per WebCrypto AES-GCM verschlüsselt teilen
+                        (inkl. URL-Auto-Open über <code>#s=…</code>).
+                      </li>
+                      <li>
+                        <strong>Smart-Tab-Handling:</strong> Geteilte Modelle ersetzen leere,
+                        unbenutzte Tabs direkt oder öffnen andernfalls einen neuen Tab.
+                      </li>
+                    </>
+                  ) : (
+                    <>
+                      <li>
+                        <strong>24h E2E-Encrypted Share Links:</strong> Share ERM models directly
+                        via <em>File → Create Share Link (24h)</em> &amp;{' '}
+                        <em>Open Share Link…</em> using client-side WebCrypto AES-GCM (with{' '}
+                        <code>#s=…</code> auto-open).
+                      </li>
+                      <li>
+                        <strong>Smart Tab Handling:</strong> Shared models reuse an untouched empty
+                        tab or open in a new tab.
+                      </li>
+                    </>
+                  )}
+                </ul>
+              </div>
+
+              <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-bold text-slate-900 dark:text-white">v1.0.1</span>
+                  <span className="text-[11px] font-mono text-slate-400">2026-11-21</span>
                 </div>
                 <ul className="list-disc list-inside space-y-1 leading-relaxed">
                   {isDe ? (

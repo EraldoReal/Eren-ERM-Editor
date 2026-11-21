@@ -1,6 +1,6 @@
 [package]
 name = "erm-editor"
-version = "1.0.1"
+version = "1.0.2"
 description = "ERM-Editor — Chen-Notation Entity-Relationship-Diagramm Editor"
 authors = ["Best-Tools"]
 edition = "2021"
