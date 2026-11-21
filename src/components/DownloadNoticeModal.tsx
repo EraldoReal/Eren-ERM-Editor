@@ -10,7 +10,8 @@ export interface DownloadNoticeModalProps {
 }
 
 const GITHUB_REPO_URL = 'https://github.com/EraldoReal/Eren-ERM-Editor';
-const GITHUB_RELEASES_URL = 'https://github.com/EraldoReal/Eren-ERM-Editor/releases';
+const MAC_DOWNLOAD_URL = 'https://erm.best-tools.app/downloads/ERM-Editor_1.0.0_aarch64.dmg';
+const WIN_DOWNLOAD_URL = 'https://erm.best-tools.app/downloads/ERM-Editor_1.0.0_x64-setup.exe';
 
 export const DownloadNoticeModal: React.FC<DownloadNoticeModalProps> = ({
   platform,
@@ -21,7 +22,8 @@ export const DownloadNoticeModal: React.FC<DownloadNoticeModalProps> = ({
 
   const isDe = language === 'de';
   const isMac = platform === 'mac';
-  const fileName = isMac ? 'ERM-Editor-macOS.dmg' : 'ERM-Editor-Windows.exe';
+  const fileName = isMac ? 'ERM-Editor_1.0.0_aarch64.dmg' : 'ERM-Editor_1.0.0_x64-setup.exe';
+  const downloadUrl = isMac ? MAC_DOWNLOAD_URL : WIN_DOWNLOAD_URL;
 
   return (
     <div
@@ -125,15 +127,13 @@ export const DownloadNoticeModal: React.FC<DownloadNoticeModalProps> = ({
             {isDe ? 'Abbrechen' : 'Cancel'}
           </button>
           <a
-            href={GITHUB_RELEASES_URL}
-            target="_blank"
-            rel="noopener noreferrer"
+            href={downloadUrl}
+            download={fileName}
             onClick={() => setTimeout(onClose, 250)}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
-            {isDe ? `${fileName} auf GitHub laden` : `Download ${fileName} on GitHub`}
-            <ExternalLink className="w-3 h-3" />
+            {isDe ? `${fileName} herunterladen` : `Download ${fileName}`}
           </a>
         </div>
       </div>
