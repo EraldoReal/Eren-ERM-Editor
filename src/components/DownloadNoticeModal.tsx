@@ -10,8 +10,8 @@ export interface DownloadNoticeModalProps {
 }
 
 const GITHUB_REPO_URL = 'https://github.com/EraldoReal/Eren-ERM-Editor';
-const MAC_DOWNLOAD_URL = 'https://erm.best-tools.app/downloads/ERM-Editor_1.0.0_aarch64.dmg';
-const WIN_DOWNLOAD_URL = 'https://erm.best-tools.app/downloads/ERM-Editor_1.0.0_x64-setup.exe';
+const MAC_DOWNLOAD_URL = 'https://erm.best-tools.app/downloads/ERM-Editor_1.0.1_aarch64.dmg';
+const WIN_DOWNLOAD_URL = 'https://erm.best-tools.app/downloads/ERM-Editor_1.0.1_x64-setup.exe';
 
 export const DownloadNoticeModal: React.FC<DownloadNoticeModalProps> = ({
   platform,
@@ -22,7 +22,7 @@ export const DownloadNoticeModal: React.FC<DownloadNoticeModalProps> = ({
 
   const isDe = language === 'de';
   const isMac = platform === 'mac';
-  const fileName = isMac ? 'ERM-Editor_1.0.0_aarch64.dmg' : 'ERM-Editor_1.0.0_x64-setup.exe';
+  const fileName = isMac ? 'ERM-Editor_1.0.1_aarch64.dmg' : 'ERM-Editor_1.0.1_x64-setup.exe';
   const downloadUrl = isMac ? MAC_DOWNLOAD_URL : WIN_DOWNLOAD_URL;
 
   return (
