@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f8fafc" />
+      <stop offset="100%" stop-color="#eff6ff" />
+    </linearGradient>
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="12" cy="12" r="1.4" fill="#cbd5e1" />
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)" />
+  <rect width="1200" height="630" fill="url(#dots)" opacity="0.65" />
+
+  <!-- Top badge -->
+  <rect x="80" y="72" width="260" height="38" rx="19" fill="#dbeafe" stroke="#93c5fd" stroke-width="1.5" />
+  <text x="210" y="97" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="16" font-weight="600" fill="#1d4ed8">erm.best-tools.app</text>
+
+  <!-- Title & Subtitle -->
+  <text x="80" y="175" font-family="Inter, system-ui, sans-serif" font-size="60" font-weight="800" fill="#0f172a">ERM-Editor</text>
+  <text x="80" y="226" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="500" fill="#475569">Chen-Notation &amp; Relationenmodell direkt im Browser</text>
+
+  <!-- ERM Diagram Illustration -->
+  <g transform="translate(80, 300)">
+    <!-- Connectors -->
+    <line x1="210" y1="110" x2="430" y2="110" stroke="#334155" stroke-width="3" />
+    <line x1="610" y1="110" x2="830" y2="110" stroke="#334155" stroke-width="3" />
+    <line x1="110" y1="68" x2="110" y2="0" stroke="#475569" stroke-width="2.5" />
+    <line x1="930" y1="68" x2="930" y2="0" stroke="#475569" stroke-width="2.5" />
+
+    <!-- Cardinality badges -->
+    <rect x="295" y="76" width="34" height="28" rx="6" fill="#ffffff" stroke="#cbd5e1" />
+    <text x="312" y="96" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="18" font-weight="700" fill="#1d4ed8">n</text>
+    <rect x="705" y="76" width="34" height="28" rx="6" fill="#ffffff" stroke="#cbd5e1" />
+    <text x="722" y="96" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="18" font-weight="700" fill="#1d4ed8">m</text>
+
+    <!-- Entity: Schüler -->
+    <rect x="10" y="68" width="200" height="84" rx="6" fill="#ffffff" stroke="#1e293b" stroke-width="3" />
+    <text x="110" y="118" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="24" font-weight="700" fill="#0f172a">Schüler</text>
+
+    <!-- Relationship: besucht -->
+    <polygon points="520,50 610,110 520,170 430,110" fill="#eff6ff" stroke="#1d4ed8" stroke-width="3" />
+    <text x="520" y="117" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="22" font-weight="600" fill="#1e3a8a">besucht</text>
+
+    <!-- Entity: Kurs -->
+    <rect x="830" y="68" width="200" height="84" rx="6" fill="#ffffff" stroke="#1e293b" stroke-width="3" />
+    <text x="930" y="118" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="24" font-weight="700" fill="#0f172a">Kurs</text>
+
+    <!-- Attribute: SchülerNr (PK) -->
+    <ellipse cx="110" cy="-28" rx="88" ry="34" fill="#ffffff" stroke="#475569" stroke-width="2.5" />
+    <text x="110" y="-21" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="18" font-weight="600" text-decoration="underline" fill="#0f172a">SchülerNr</text>
+
+    <!-- Attribute: KursNr (PK) -->
+    <ellipse cx="930" cy="-28" rx="84" ry="34" fill="#ffffff" stroke="#475569" stroke-width="2.5" />
+    <text x="930" y="-21" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="18" font-weight="600" text-decoration="underline" fill="#0f172a">KursNr</text>
+  </g>
+
+  <!-- Footer -->
+  <text x="80" y="575" font-family="Inter, system-ui, sans-serif" font-size="20" font-weight="500" fill="#64748b">Chen &amp; Min-Max • Automatische SQL-Ableitung • SVG / PNG / PDF Export • Kostenlos</text>
+</svg>

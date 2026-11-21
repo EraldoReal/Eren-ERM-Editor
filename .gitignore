@@ -1,0 +1,17 @@
+# Dependencies & build output
+node_modules/
+dist/
+dist-ssr/
+
+# Tauri / Rust build artifacts
+src-tauri/target/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / Editor
+.DS_Store
+.vscode/
+.idea/
+*.local
