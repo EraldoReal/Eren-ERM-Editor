@@ -15,6 +15,8 @@ export interface MenuBarProps {
   onOpenPrint: () => void;
   onOpenHelp: (tab?: HelpTab) => void;
   onOpenUpdate?: () => void;
+  onOpenShareCreate: () => void;
+  onOpenShareOpen: () => void;
 }
 
 type MenuKey = 'file' | 'edit' | 'view' | 'help';
@@ -327,6 +329,8 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   onOpenPrint,
   onOpenHelp,
   onOpenUpdate,
+  onOpenShareCreate,
+  onOpenShareOpen,
 }) => {
   const isDesktop = isTauriEnvironment();
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
@@ -537,6 +541,15 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 label={t('menu.file.saveAs')}
                 shortcut="Ctrl+Shift+S"
                 onClick={() => closeAndRun(() => void saveErmFile(true))}
+              />
+              <MenuDivider />
+              <MenuItem
+                label={t('menu.file.shareCreate')}
+                onClick={() => closeAndRun(onOpenShareCreate)}
+              />
+              <MenuItem
+                label={t('menu.file.shareOpen')}
+                onClick={() => closeAndRun(onOpenShareOpen)}
               />
               <MenuDivider />
               <MenuItem

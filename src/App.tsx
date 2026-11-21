@@ -13,10 +13,12 @@ import { ProjectTabs } from './components/ProjectTabs';
 import { RelationalSidebar } from './components/RelationalSidebar';
 import { SeoSubPage, type SeoPageRoute } from './components/SeoPages';
 import { SettingsModal } from './components/SettingsModal';
+import { ShareCreateModal, ShareOpenModal } from './components/ShareModals';
 import { StatusBar } from './components/StatusBar';
 import { Toolbar } from './components/Toolbar';
 import { UpdateModal } from './components/UpdateModal';
 import { WorkspaceCanvas } from './components/WorkspaceCanvas';
+import { fetchAndDecryptShare, ShareError } from './engine/shareClient';
 import { isTauriEnvironment } from './platform/adapter';
 import { useEditorStore } from './store/editorStore';
 
@@ -63,12 +65,65 @@ export const App: React.FC = () => {
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpTab, setHelpTab] = useState<HelpTab>('legend');
   const [updateOpen, setUpdateOpen] = useState(false);
+  const [shareCreateOpen, setShareCreateOpen] = useState(false);
+  const [shareOpenModalOpen, setShareOpenModalOpen] = useState(false);
 
   const [currentPath, setCurrentPath] = useState<string>(() => {
     if (isTauriEnvironment() || typeof window === 'undefined') return '/app';
-    if (window.location.hash === '#app') return '/app';
+    if (window.location.hash === '#app' || window.location.hash.startsWith('#s=')) return '/app';
     return window.location.pathname || '/';
   });
+
+  // Auto-open #s=ID.KEY share links on browser startup
+  useEffect(() => {
+    if (isTauriEnvironment() || typeof window === 'undefined') return;
+    const hash = window.location.hash;
+    if (!hash.startsWith('#s=')) return;
+
+    // Remove #s=... from URL cleanly
+    window.history.replaceState(null, '', '/app');
+
+    let cancelled = false;
+    void fetchAndDecryptShare(hash)
+      .then((doc) => {
+        if (cancelled) return;
+        const state = useEditorStore.getState();
+        state.loadDocumentInTab(doc, { filePath: null, fileHandle: null });
+        const isDe = state.appSettings.language === 'de';
+        state.showToast(
+          isDe ? `Geteiltes ERM geladen: ${doc.name}` : `Loaded shared ERM: ${doc.name}`,
+          'success',
+        );
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        const state = useEditorStore.getState();
+        const isDe = state.appSettings.language === 'de';
+        let msg = isDe
+          ? 'Geteilter Link konnte nicht geladen werden.'
+          : 'Could not load shared link.';
+        if (err instanceof ShareError) {
+          if (err.code === 'wrong_app') {
+            msg = isDe
+              ? `Dieser Link gehört zu einer anderen App (${err.targetApp ?? 'unbekannt'}).`
+              : `This link belongs to another app (${err.targetApp ?? 'unknown'}).`;
+          } else if (err.code === 'not_found') {
+            msg = isDe
+              ? 'Geteilter Link nicht gefunden oder abgelaufen.'
+              : 'Shared link not found or expired.';
+          } else if (err.code === 'decrypt_failed' || err.code === 'invalid_token') {
+            msg = isDe
+              ? 'Ungültiger Link oder Entschlüsselung fehlgeschlagen.'
+              : 'Invalid link or decryption failed.';
+          }
+        }
+        state.showToast(msg, 'error');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (isTauriEnvironment()) return;
@@ -180,6 +235,12 @@ export const App: React.FC = () => {
             break;
           case 'file-save-as':
             void saveErmFile(true);
+            break;
+          case 'file-share-create':
+            setShareCreateOpen(true);
+            break;
+          case 'file-share-open':
+            setShareOpenModalOpen(true);
             break;
           case 'file-export-sql':
             void exportErmSql();
@@ -467,6 +528,8 @@ export const App: React.FC = () => {
             setHelpOpen(true);
           }}
           onOpenUpdate={() => setUpdateOpen(true)}
+          onOpenShareCreate={() => setShareCreateOpen(true)}
+          onOpenShareOpen={() => setShareOpenModalOpen(true)}
         />
         <ProjectTabs />
         <Toolbar
@@ -519,6 +582,11 @@ export const App: React.FC = () => {
         initialTab={helpTab}
       />
       <UpdateModal isOpen={updateOpen} onClose={() => setUpdateOpen(false)} />
+      <ShareCreateModal isOpen={shareCreateOpen} onClose={() => setShareCreateOpen(false)} />
+      <ShareOpenModal
+        isOpen={shareOpenModalOpen}
+        onClose={() => setShareOpenModalOpen(false)}
+      />
     </div>
   );
 };

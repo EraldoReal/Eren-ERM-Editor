@@ -100,6 +100,9 @@ fn build_macos_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<t
         .item(&MenuItemBuilder::with_id("file-save", "Speichern").accelerator("CmdOrCtrl+S").build(app)?)
         .item(&MenuItemBuilder::with_id("file-save-as", "Speichern unter…").accelerator("CmdOrCtrl+Shift+S").build(app)?)
         .separator()
+        .item(&MenuItemBuilder::with_id("file-share-create", "Link erstellen (24h)").build(app)?)
+        .item(&MenuItemBuilder::with_id("file-share-open", "Link öffnen…").build(app)?)
+        .separator()
         .item(&MenuItemBuilder::with_id("file-export-sql", "SQL-DDL exportieren…").build(app)?)
         .item(&MenuItemBuilder::with_id("file-print", "Drucken…").accelerator("CmdOrCtrl+P").build(app)?)
         .build()?;
