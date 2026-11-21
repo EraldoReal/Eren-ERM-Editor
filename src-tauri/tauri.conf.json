@@ -27,8 +27,15 @@
       "devCsp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost ws://localhost:1420 http://localhost:1420; object-src 'none'; base-uri 'self'"
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQwNThCOUYxQjM4MDg3MTQKUldRVWg0Q3o4YmxZUUpEWXNQay9SK3cyNzZGWUQzaGpxT1JtV0t0aFQ5SmwyTHh2NWJGR0hnWGcK",
+      "endpoints": ["https://erm.best-tools.app/downloads/latest.json"]
+    }
+  },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": "all",
     "icon": [
       "icons/32x32.png",

@@ -1,8 +1,7 @@
 use serde::Serialize;
-use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{Emitter, Manager};
+use tauri_plugin_updater::UpdaterExt;
 
 #[cfg(target_os = "macos")]
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
@@ -19,16 +18,6 @@ pub struct UpdateCheckResult {
     pub notes: String,
 }
 
-fn parse_semver(v: &str) -> (u32, u32, u32) {
-    let cleaned = v.trim().trim_start_matches('v');
-    let mut parts = cleaned.split('.').map(|s| s.parse::<u32>().unwrap_or(0));
-    (
-        parts.next().unwrap_or(0),
-        parts.next().unwrap_or(0),
-        parts.next().unwrap_or(0),
-    )
-}
-
 #[tauri::command]
 fn confirm_close(app: tauri::AppHandle) {
     FORCE_CLOSE.store(true, Ordering::SeqCst);
@@ -39,261 +28,54 @@ fn confirm_close(app: tauri::AppHandle) {
     }
 }
 
-const MANIFEST_URL: &str = "https://erm.best-tools.app/downloads/version.json";
-const ALLOWED_DOWNLOAD_PREFIX: &str = "https://erm.best-tools.app/";
-
-/// Fetches a URL over HTTPS only (no redirects to other protocols) via curl.
-fn curl_https(url: &str, output_file: Option<&Path>, max_time: &str) -> Result<Vec<u8>, String> {
-    let mut cmd = Command::new("curl");
-    cmd.args([
-        "-fsSL",
-        "--proto",
-        "=https",
-        "--proto-redir",
-        "=https",
-        "--tlsv1.2",
-        "--max-time",
-        max_time,
-    ]);
-    if let Some(path) = output_file {
-        cmd.arg("-o").arg(path);
-    }
-    let output = cmd
-        .arg(url)
-        .output()
-        .map_err(|e| format!("Download fehlgeschlagen: {e}"))?;
-    if !output.status.success() {
-        return Err("Server konnte nicht erreicht werden.".to_string());
-    }
-    Ok(output.stdout)
-}
-
-fn fetch_manifest() -> Result<serde_json::Value, String> {
-    let body = curl_https(MANIFEST_URL, None, "10")
-        .map_err(|e| format!("Fehler beim Abrufen der Update-Informationen: {e}"))?;
-    serde_json::from_slice(&body).map_err(|e| format!("Ungültiges Update-Manifest: {e}"))
-}
-
-/// Download URL and expected SHA-256 for the current platform from the manifest.
-fn platform_asset(json: &serde_json::Value) -> (String, String) {
-    #[cfg(target_os = "macos")]
-    let (url_key, sha_key) = ("macUrl", "macSha256");
-    #[cfg(target_os = "windows")]
-    let (url_key, sha_key) = ("winUrl", "winSha256");
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    let (url_key, sha_key) = ("linuxUrl", "linuxSha256");
-
-    (
-        json[url_key].as_str().unwrap_or("").to_string(),
-        json[sha_key].as_str().unwrap_or("").trim().to_lowercase(),
-    )
-}
-
+/// Checks the signed update feed configured in `tauri.conf.json` (plugins.updater).
+/// The updater plugin verifies the download against the embedded public key, so a
+/// tampered feed or payload is rejected before anything is installed.
 #[tauri::command]
-fn check_app_update(app: tauri::AppHandle) -> Result<UpdateCheckResult, String> {
+async fn check_app_update(app: tauri::AppHandle) -> Result<UpdateCheckResult, String> {
     let current_version = app.package_info().version.to_string();
-    let json = fetch_manifest()?;
+    let update = app
+        .updater()
+        .map_err(|e| format!("Updater konnte nicht gestartet werden: {e}"))?
+        .check()
+        .await
+        .map_err(|e| format!("Update-Server konnte nicht erreicht werden: {e}"))?;
 
-    let latest_version = json["version"]
-        .as_str()
-        .unwrap_or(&current_version)
-        .to_string();
-    let notes = json["notes"].as_str().unwrap_or("").to_string();
-    let (download_url, _) = platform_asset(&json);
-
-    let available = parse_semver(&latest_version) > parse_semver(&current_version);
-
-    Ok(UpdateCheckResult {
-        current_version,
-        latest_version,
-        available,
-        download_url,
-        notes,
+    Ok(match update {
+        Some(u) => UpdateCheckResult {
+            current_version,
+            latest_version: u.version.clone(),
+            available: true,
+            download_url: u.download_url.to_string(),
+            notes: u.body.clone().unwrap_or_default(),
+        },
+        None => UpdateCheckResult {
+            latest_version: current_version.clone(),
+            current_version,
+            available: false,
+            download_url: String::new(),
+            notes: String::new(),
+        },
     })
 }
 
-/// Creates a fresh, private (0700) temp directory that only this process uses.
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-fn make_private_temp_dir() -> Result<PathBuf, String> {
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
-    let dir = std::env::temp_dir().join(format!("erm-editor-update-{}-{nanos}", std::process::id()));
-    let mut builder = std::fs::DirBuilder::new();
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::DirBuilderExt;
-        builder.mode(0o700);
-    }
-    builder
-        .create(&dir)
-        .map_err(|e| format!("Temporärer Ordner konnte nicht erstellt werden: {e}"))?;
-    Ok(dir)
-}
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-fn sha256_hex_of_file(path: &Path) -> Result<String, String> {
-    use sha2::{Digest, Sha256};
-    use std::io::Read;
-    let mut file = std::fs::File::open(path)
-        .map_err(|e| format!("Heruntergeladene Datei konnte nicht gelesen werden: {e}"))?;
-    let mut hasher = Sha256::new();
-    let mut buf = [0u8; 64 * 1024];
-    loop {
-        let n = file
-            .read(&mut buf)
-            .map_err(|e| format!("Heruntergeladene Datei konnte nicht gelesen werden: {e}"))?;
-        if n == 0 {
-            break;
-        }
-        hasher.update(&buf[..n]);
-    }
-    Ok(hasher
-        .finalize()
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect())
-}
-
-/// Downloads the platform asset announced by the manifest and verifies its SHA-256.
-/// The manifest is fetched again here instead of trusting a URL sent by the webview.
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-fn download_verified(dir: &Path, file_name: &str) -> Result<PathBuf, String> {
-    let json = fetch_manifest()?;
-    let (url, expected_sha) = platform_asset(&json);
-
-    if url.is_empty() {
-        return Err("Kein Download-Link für diese Plattform hinterlegt.".to_string());
-    }
-    if !url.starts_with(ALLOWED_DOWNLOAD_PREFIX) {
-        return Err("Der Download-Link des Update-Manifests ist nicht vertrauenswürdig.".to_string());
-    }
-    if expected_sha.len() != 64 || !expected_sha.chars().all(|c| c.is_ascii_hexdigit()) {
-        return Err("Das Update-Manifest enthält keine gültige SHA-256-Prüfsumme.".to_string());
-    }
-
-    let target = dir.join(file_name);
-    curl_https(&url, Some(&target), "600")
-        .map_err(|_| "Update-Paket konnte nicht heruntergeladen werden.".to_string())?;
-
-    let actual = sha256_hex_of_file(&target)?;
-    if actual != expected_sha {
-        return Err("Prüfsumme des Updates stimmt nicht überein. Installation abgebrochen.".to_string());
-    }
-    Ok(target)
-}
-
-#[cfg(target_os = "macos")]
-fn install_macos_update(work_dir: &Path) -> Result<(), String> {
-    let dmg = download_verified(work_dir, "update.dmg")?;
-    let mount_point = work_dir.join("mount");
-    std::fs::create_dir(&mount_point)
-        .map_err(|e| format!("Mount-Ordner konnte nicht erstellt werden: {e}"))?;
-
-    let attach = Command::new("hdiutil")
-        .arg("attach")
-        .arg(&dmg)
-        .arg("-mountpoint")
-        .arg(&mount_point)
-        .args(["-nobrowse", "-readonly", "-quiet"])
-        .status()
-        .map_err(|e| format!("Mounten fehlgeschlagen: {e}"))?;
-    if !attach.success() {
-        return Err("DMG-Image konnte nicht geöffnet werden.".to_string());
-    }
-
-    let result = (|| -> Result<(), String> {
-        let src_app = mount_point.join("ERM-Editor.app");
-        if !src_app.is_dir() {
-            return Err("Das Update-Paket enthält keine ERM-Editor.app.".to_string());
-        }
-
-        let verified = Command::new("codesign")
-            .args(["--verify", "--deep", "--strict"])
-            .arg(&src_app)
-            .status()
-            .map(|s| s.success())
-            .unwrap_or(false);
-        if !verified {
-            return Err("Die Code-Signatur der neuen App ist ungültig.".to_string());
-        }
-
-        let dst_app = Path::new("/Applications/ERM-Editor.app");
-        let staging = Path::new("/Applications/.ERM-Editor-update.app");
-        let backup = Path::new("/Applications/.ERM-Editor-backup.app");
-        let _ = std::fs::remove_dir_all(staging);
-        let _ = std::fs::remove_dir_all(backup);
-
-        // 1. Copy the new app next to the old one; the old app stays untouched on failure.
-        let copy = Command::new("cp")
-            .arg("-R")
-            .arg(&src_app)
-            .arg(staging)
-            .status()
-            .map_err(|e| format!("Kopieren fehlgeschlagen: {e}"))?;
-        if !copy.success() {
-            let _ = std::fs::remove_dir_all(staging);
-            return Err("App konnte nicht nach /Applications kopiert werden.".to_string());
-        }
-
-        // 2. Swap: old -> backup, new -> final location. Roll back if the swap fails.
-        let had_old = dst_app.exists();
-        if had_old {
-            if let Err(e) = std::fs::rename(dst_app, backup) {
-                let _ = std::fs::remove_dir_all(staging);
-                return Err(format!("Die alte App konnte nicht ersetzt werden: {e}"));
-            }
-        }
-        if let Err(e) = std::fs::rename(staging, dst_app) {
-            if had_old {
-                let _ = std::fs::rename(backup, dst_app);
-            }
-            let _ = std::fs::remove_dir_all(staging);
-            return Err(format!("Die neue App konnte nicht installiert werden: {e}"));
-        }
-        let _ = std::fs::remove_dir_all(backup);
-        Ok(())
-    })();
-
-    let _ = Command::new("hdiutil")
-        .arg("detach")
-        .arg(&mount_point)
-        .arg("-quiet")
-        .status();
-    result
-}
-
+/// Downloads, signature-checks and installs the update, then restarts the app.
 #[tauri::command]
-fn install_app_update() -> Result<String, String> {
-    #[cfg(target_os = "macos")]
-    {
-        let work_dir = make_private_temp_dir()?;
-        let result = install_macos_update(&work_dir);
-        let _ = std::fs::remove_dir_all(&work_dir);
-        result?;
-        let _ = Command::new("open")
-            .args(["-n", "/Applications/ERM-Editor.app"])
-            .spawn();
-        std::process::exit(0);
-    }
+async fn install_app_update(app: tauri::AppHandle) -> Result<String, String> {
+    let update = app
+        .updater()
+        .map_err(|e| format!("Updater konnte nicht gestartet werden: {e}"))?
+        .check()
+        .await
+        .map_err(|e| format!("Update-Server konnte nicht erreicht werden: {e}"))?
+        .ok_or_else(|| "Es ist kein Update verfügbar.".to_string())?;
 
-    #[cfg(target_os = "windows")]
-    {
-        let work_dir = make_private_temp_dir()?;
-        let installer = download_verified(&work_dir, "ERM-Editor-Update.exe").inspect_err(|_| {
-            let _ = std::fs::remove_dir_all(&work_dir);
-        })?;
-        Command::new(&installer)
-            .spawn()
-            .map_err(|e| format!("Installer konnte nicht gestartet werden: {e}"))?;
-        std::process::exit(0);
-    }
+    update
+        .download_and_install(|_chunk, _total| {}, || {})
+        .await
+        .map_err(|e| format!("Update konnte nicht installiert werden: {e}"))?;
 
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    {
-        Ok("Bitte lade die aktuelle Version über Hilfe -> Download herunter.".to_string())
-    }
+    app.restart()
 }
 
 #[cfg(target_os = "macos")]
@@ -362,6 +144,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             #[cfg(target_os = "macos")]
             {
