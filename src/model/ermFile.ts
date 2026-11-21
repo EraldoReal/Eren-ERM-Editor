@@ -1,4 +1,4 @@
-import { DEFAULT_NODE_DIMENSIONS, createId } from './defaults.ts';
+import { DEFAULT_NODE_DIMENSIONS, MAX_ZOOM, MIN_ZOOM, createId } from './defaults.ts';
 import type {
   ErmCardinality,
   ErmDocument,
@@ -246,12 +246,14 @@ export function validateErmDocument(value: unknown): ErmDocument {
     edgeIds.add(edge.id);
   }
 
-  const zoom = value.zoom === undefined ? 1 : value.zoom;
+  const zoomRaw = value.zoom === undefined ? 1 : value.zoom;
   const panX = value.panX === undefined ? 0 : value.panX;
   const panY = value.panY === undefined ? 0 : value.panY;
-  if (!isFiniteNumber(zoom) || zoom <= 0) {
+  if (!isFiniteNumber(zoomRaw) || zoomRaw <= 0) {
     throw new ErmFileValidationError('zoom must be a positive number');
   }
+  // A hand-edited file must not be able to open with an unusable zoom level
+  const zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoomRaw));
   if (!isFiniteNumber(panX) || !isFiniteNumber(panY)) {
     throw new ErmFileValidationError('panX and panY must be finite numbers');
   }

@@ -41,8 +41,13 @@ function isEditableTarget(target: EventTarget | null): boolean {
 export const App: React.FC = () => {
   const loadAppSettings = useEditorStore((s) => s.loadAppSettings);
   const themeSetting = useEditorStore((s) => s.appSettings.theme);
+  const uiScale = useEditorStore((s) => s.appSettings.uiScale ?? 1);
   const toast = useEditorStore((s) => s.toast);
   const clearToast = useEditorStore((s) => s.clearToast);
+
+  useEffect(() => {
+    document.documentElement.style.fontSize = `${Math.round(16 * uiScale)}px`;
+  }, [uiScale]);
 
   useEffect(() => {
     if (!toast) return;
@@ -197,6 +202,23 @@ export const App: React.FC = () => {
           case 'view-reset':
             state.setZoom(1);
             state.setPan(0, 0);
+            break;
+          case 'view-ui-up': {
+            const scale = state.appSettings.uiScale ?? 1;
+            state.updateAppSettings({
+              uiScale: Math.min(1.4, Number((scale + 0.1).toFixed(2))),
+            });
+            break;
+          }
+          case 'view-ui-down': {
+            const scale = state.appSettings.uiScale ?? 1;
+            state.updateAppSettings({
+              uiScale: Math.max(0.8, Number((scale - 0.1).toFixed(2))),
+            });
+            break;
+          }
+          case 'view-ui-reset':
+            state.updateAppSettings({ uiScale: 1 });
             break;
           case 'view-auto-layout':
             if (state.selectedNodeIds.length === 1) {

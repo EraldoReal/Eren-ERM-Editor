@@ -21,6 +21,11 @@
         { "path": "$APPCONFIG/**" },
         { "path": "$DOCUMENT/**" },
         { "path": "$HOME/**" }
+      ],
+      "deny": [
+        { "path": "$HOME/Library/**" },
+        { "path": "$HOME/.*/**" },
+        { "path": "$HOME/.*" }
       ]
     }
   ]

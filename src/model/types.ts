@@ -88,5 +88,6 @@ export interface AppSettings {
   defaultShowGrid: boolean;
   defaultGridStyle: GridStyle;
   defaultSnapToGrid: boolean;
+  uiScale?: number;
   recentFiles: RecentFileEntry[];
 }

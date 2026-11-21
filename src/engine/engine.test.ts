@@ -247,6 +247,94 @@ describe('relationalModel', () => {
   });
 });
 
+function buildDoc(nodes: ErmNode[], edges: ReturnType<typeof createDefaultEdge>[]): ErmDocument {
+  return { ...createEmptyDocument(), nodes, edges };
+}
+
+describe('relationalModel regressions', () => {
+  it('adds the synthetic PK column to the table that FKs reference', () => {
+    const kunde = createDefaultNode('entity', 0, 0, 'Kunde');
+    const bestellung = createDefaultNode('entity', 400, 0, 'Bestellung');
+    const rel = createDefaultNode('relationship', 200, 0, 'bestellt');
+    const doc = buildDoc(
+      [kunde, bestellung, rel],
+      [createDefaultEdge(kunde.id, rel.id, '1'), createDefaultEdge(rel.id, bestellung.id, 'n')],
+    );
+    const tables = deriveRelationalModel(doc);
+    const kundeTable = tables.find((t) => t.name === 'Kunde')!;
+    expect(kundeTable.columns.map((c) => c.name)).toContain('Kunde_id');
+    const fk = tables.find((t) => t.name === 'Bestellung')!.columns.find((c) => c.isForeignKey)!;
+    expect(fk.referencesColumn).toBe('Kunde_id');
+    const sql = generateSqlFromRelationalModel(tables);
+    expect(sql).toContain('PRIMARY KEY (Kunde_id)');
+  });
+
+  it('resolves chained weak entities owners-first regardless of node order', () => {
+    const a = createDefaultNode('entity', 0, 0, 'A');
+    const b = { ...createDefaultNode('entity', 200, 0, 'B'), isWeak: true };
+    const c = { ...createDefaultNode('entity', 400, 0, 'C'), isWeak: true };
+    const aId = { ...createDefaultNode('attribute', 0, 100, 'AID'), isPrimaryKey: true };
+    const bNo = { ...createDefaultNode('attribute', 200, 100, 'BNo'), isPrimaryKey: true };
+    const cNo = { ...createDefaultNode('attribute', 400, 100, 'CNo'), isPrimaryKey: true };
+    const r1 = { ...createDefaultNode('relationship', 100, 0, 'r1'), isIdentifying: true };
+    const r2 = { ...createDefaultNode('relationship', 300, 0, 'r2'), isIdentifying: true };
+    // C is deliberately placed before B in the node list
+    const doc = buildDoc(
+      [a, c, b, aId, bNo, cNo, r1, r2],
+      [
+        createDefaultEdge(a.id, aId.id),
+        createDefaultEdge(b.id, bNo.id),
+        createDefaultEdge(c.id, cNo.id),
+        createDefaultEdge(a.id, r1.id, '1'),
+        createDefaultEdge(r1.id, b.id, 'n'),
+        createDefaultEdge(b.id, r2.id, '1'),
+        createDefaultEdge(r2.id, c.id, 'n'),
+      ],
+    );
+    const tables = deriveRelationalModel(doc);
+    const cTable = tables.find((t) => t.name === 'C')!;
+    const pkNames = cTable.columns.filter((col) => col.isPrimaryKey).map((col) => col.name);
+    expect(pkNames).toHaveLength(3);
+    expect(pkNames).toContain('CNo');
+    // Composite FK to B must be emitted as ONE constraint covering both columns
+    const sql = generateSqlFromRelationalModel(tables);
+    expect(sql).toMatch(/FOREIGN KEY \([^)]*,[^)]*\) REFERENCES B\([^)]*,[^)]*\)/);
+  });
+
+  it('gives FK columns the type of the referenced column and avoids false INT matches', () => {
+    const sql = generateSqlFromRelationalModel([
+      {
+        name: 'Artikel',
+        sourceKind: 'entity',
+        sourceNodeId: 'x',
+        columns: [
+          { name: 'Artikelnummer', isPrimaryKey: true, isForeignKey: false },
+          { name: 'Image', isPrimaryKey: false, isForeignKey: false },
+          { name: 'Preis', isPrimaryKey: false, isForeignKey: false },
+        ],
+      },
+      {
+        name: 'Lager',
+        sourceKind: 'entity',
+        sourceNodeId: 'y',
+        columns: [
+          {
+            name: 'Ref',
+            isPrimaryKey: false,
+            isForeignKey: true,
+            referencesTable: 'Artikel',
+            referencesColumn: 'Artikelnummer',
+          },
+        ],
+      },
+    ]);
+    expect(sql).toContain('Image VARCHAR(255)');
+    expect(sql).toContain('Preis DECIMAL(10,2)');
+    const artikelType = /Artikelnummer (\S+)/.exec(sql)![1];
+    expect(sql).toContain(`Ref ${artikelType}`);
+  });
+});
+
 describe('sqlGenerator', () => {
   it('generates clean CREATE TABLE statements with PK and FK constraints', () => {
     expect(generateSqlFromRelationalModel([])).toBe('');

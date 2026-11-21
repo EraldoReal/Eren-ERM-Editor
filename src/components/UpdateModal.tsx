@@ -58,7 +58,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ isOpen, onClose }) => 
     setStatus('installing');
     setErrorMsg('');
     try {
-      await invoke<string>('install_app_update', { downloadUrl: result.downloadUrl });
+      await invoke<string>('install_app_update');
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : String(err));
       setStatus('error');

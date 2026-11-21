@@ -237,11 +237,16 @@ export const WorkspaceCanvas: React.FC<WorkspaceCanvasProps> = ({ darkMode }) =>
       }
     };
 
+    // Releasing Space while the window is unfocused would otherwise leave pan mode stuck
+    const handleBlur = () => setIsSpacePressed(false);
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
     };
   }, [
     activeTool,
@@ -257,7 +262,7 @@ export const WorkspaceCanvas: React.FC<WorkspaceCanvasProps> = ({ darkMode }) =>
 
   // Wheel: Ctrl/Cmd + wheel zooms at cursor; normal wheel pans
   const handleWheel = useCallback(
-    (e: React.WheelEvent<HTMLDivElement>) => {
+    (e: WheelEvent) => {
       e.preventDefault();
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -281,6 +286,15 @@ export const WorkspaceCanvas: React.FC<WorkspaceCanvasProps> = ({ darkMode }) =>
     },
     [clampPan, doc.panX, doc.panY, doc.zoom, setPan, setZoom],
   );
+
+  // React registers wheel listeners as passive, so preventDefault would be ignored.
+  // Attach a native, non-passive listener instead.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, [handleWheel]);
 
   // Canvas pointer down (pan, place node, or marquee)
   const handleCanvasPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -326,16 +340,27 @@ export const WorkspaceCanvas: React.FC<WorkspaceCanvasProps> = ({ darkMode }) =>
       return;
     }
 
-    // Select tool on empty canvas -> start marquee
-    if (!e.shiftKey) {
-      clearSelection();
+    // Select tool on empty canvas:
+    // - Shift + drag -> marquee selection box
+    // - Normal left-drag -> pan around the canvas (and deselect on click)
+    if (e.shiftKey) {
+      setInteraction({
+        mode: 'marquee',
+        startCanvasX: pt.x,
+        startCanvasY: pt.y,
+        currentCanvasX: pt.x,
+        currentCanvasY: pt.y,
+      });
+      return;
     }
+
+    clearSelection();
     setInteraction({
-      mode: 'marquee',
-      startCanvasX: pt.x,
-      startCanvasY: pt.y,
-      currentCanvasX: pt.x,
-      currentCanvasY: pt.y,
+      mode: 'pan',
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startPanX: doc.panX,
+      startPanY: doc.panY,
     });
   };
 
@@ -669,13 +694,16 @@ export const WorkspaceCanvas: React.FC<WorkspaceCanvasProps> = ({ darkMode }) =>
       ? doc.edges.find((e) => e.id === selectedEdgeIds[0]) ?? null
       : null;
 
-  const cursorClass = isSpacePressed || interaction.mode === 'pan'
-    ? 'cursor-grab active:cursor-grabbing'
-    : activeTool === 'connect' || interaction.mode === 'connect'
-      ? 'cursor-crosshair'
-      : activeTool !== 'select'
-        ? 'cursor-copy'
-        : 'cursor-default';
+  const cursorClass =
+    interaction.mode === 'pan'
+      ? 'cursor-grabbing'
+      : isSpacePressed
+        ? 'cursor-grab active:cursor-grabbing'
+        : activeTool === 'connect' || interaction.mode === 'connect'
+          ? 'cursor-crosshair'
+          : activeTool !== 'select'
+            ? 'cursor-copy'
+            : 'cursor-grab';
 
   const scaledW = WORKSPACE_WIDTH * doc.zoom;
   const scaledH = WORKSPACE_HEIGHT * doc.zoom;
@@ -688,7 +716,6 @@ export const WorkspaceCanvas: React.FC<WorkspaceCanvasProps> = ({ darkMode }) =>
     <div
       ref={containerRef}
       className={`relative flex-1 overflow-hidden bg-slate-100 dark:bg-slate-950 ${cursorClass}`}
-      onWheel={handleWheel}
       onPointerDown={handleCanvasPointerDown}
       onDoubleClick={handleCanvasDoubleClick}
       onContextMenu={handleCanvasContextMenu}

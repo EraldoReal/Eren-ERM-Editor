@@ -40,16 +40,25 @@ export async function renderErmToPngBlob(
     const width = Math.max(1, Math.ceil(bounds.width));
     const height = Math.max(1, Math.ceil(bounds.height));
 
+    // Browsers cap canvas size (about 16k px per side / ~100M pixels); reduce the
+    // scale for large diagrams instead of failing with an empty blob.
+    const MAX_SIDE = 16000;
+    const MAX_PIXELS = 100_000_000;
+    let effectiveScale: number = scale;
+    effectiveScale = Math.min(effectiveScale, MAX_SIDE / width, MAX_SIDE / height);
+    effectiveScale = Math.min(effectiveScale, Math.sqrt(MAX_PIXELS / (width * height)));
+    effectiveScale = Math.max(effectiveScale, 0.1);
+
     const canvas = document.createElement('canvas');
-    canvas.width = width * scale;
-    canvas.height = height * scale;
+    canvas.width = Math.max(1, Math.floor(width * effectiveScale));
+    canvas.height = Math.max(1, Math.floor(height * effectiveScale));
 
     const ctx = canvas.getContext('2d');
     if (!ctx) {
       throw new Error('Could not acquire 2D canvas context.');
     }
 
-    ctx.scale(scale, scale);
+    ctx.scale(effectiveScale, effectiveScale);
     ctx.drawImage(img, 0, 0, width, height);
 
     const pngBlob = await new Promise<Blob | null>((resolve) => {

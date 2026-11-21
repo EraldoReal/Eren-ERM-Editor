@@ -6,6 +6,8 @@ export interface RelationalColumn {
   isForeignKey: boolean;
   referencesTable?: string;
   referencesColumn?: string;
+  /** Columns sharing the same group form one (composite) foreign key constraint. */
+  fkGroup?: string;
   isNullable?: boolean;
 }
 
@@ -73,19 +75,113 @@ function getDirectAttributes(
   return attrs;
 }
 
+/**
+ * Returns the primary-key columns of a table. If the table has none, a synthetic
+ * `<table>_id` key column is added to the table itself, so that foreign keys
+ * referencing it always point to an existing column.
+ */
 function getPrimaryKeyColumns(table: RelationalTable): RelationalColumn[] {
   const pks = table.columns.filter((c) => c.isPrimaryKey);
   if (pks.length > 0) {
     return pks;
   }
-  return [
-    {
-      name: `${table.name}_id`,
-      isPrimaryKey: true,
-      isForeignKey: false,
-      isNullable: false,
-    },
-  ];
+  const synthetic: RelationalColumn = {
+    name: makeUniqueColumnName(table.columns, `${table.name}_id`),
+    isPrimaryKey: true,
+    isForeignKey: false,
+    isNullable: false,
+  };
+  table.columns.unshift(synthetic);
+  return [synthetic];
+}
+
+/**
+ * Entities that identify (own) `weak` through the identifying relationship `rel`.
+ * Strong entities always own. If another weak entity is involved (chained weak
+ * entities), the one on the "1" side owns the one on the "n" side; when the
+ * cardinalities do not tell, the earlier node owns the later one, which keeps
+ * the ownership graph acyclic.
+ */
+function getIdentifyingOwners(
+  weak: ErmNode,
+  rel: ErmNode,
+  edges: readonly ErmEdge[],
+  nodeById: ReadonlyMap<string, ErmNode>,
+  nodeOrder: ReadonlyMap<string, number>,
+): ErmNode[] {
+  const links: Array<{ entity: ErmNode; edge: ErmEdge }> = [];
+  for (const edge of edges) {
+    if (edge.sourceId !== rel.id && edge.targetId !== rel.id) continue;
+    const other = nodeById.get(edge.sourceId === rel.id ? edge.targetId : edge.sourceId);
+    if (other?.type === 'entity') links.push({ entity: other, edge });
+  }
+  const weakLink = links.find((l) => l.entity.id === weak.id);
+  if (!weakLink) return [];
+
+  const owners: ErmNode[] = [];
+  for (const link of links) {
+    if (link.entity.id === weak.id || owners.some((o) => o.id === link.entity.id)) continue;
+    if (!link.entity.isWeak) {
+      owners.push(link.entity);
+      continue;
+    }
+    const otherMany = isManyCardinality(link.edge.cardinality);
+    const weakMany = isManyCardinality(weakLink.edge.cardinality);
+    if (otherMany !== weakMany) {
+      if (weakMany) owners.push(link.entity);
+    } else if ((nodeOrder.get(link.entity.id) ?? 0) < (nodeOrder.get(weak.id) ?? 0)) {
+      owners.push(link.entity);
+    }
+  }
+  return owners;
+}
+
+/**
+ * Orders weak entities so that every weak entity comes after the weak entities
+ * that own it through an identifying relationship. Cycles fall back to input order.
+ */
+function orderWeakEntitiesByOwnership(
+  weakEntities: readonly ErmNode[],
+  relationships: readonly ErmNode[],
+  edges: readonly ErmEdge[],
+  nodeById: ReadonlyMap<string, ErmNode>,
+  nodeOrder: ReadonlyMap<string, number>,
+): ErmNode[] {
+  const weakIds = new Set(weakEntities.map((w) => w.id));
+  const ownersOf = new Map<string, Set<string>>();
+  for (const w of weakEntities) {
+    const owners = new Set<string>();
+    for (const rel of relationships) {
+      if (!rel.isIdentifying) continue;
+      for (const o of getIdentifyingOwners(w, rel, edges, nodeById, nodeOrder)) {
+        if (weakIds.has(o.id)) owners.add(o.id);
+      }
+    }
+    ownersOf.set(w.id, owners);
+  }
+
+  const ordered: ErmNode[] = [];
+  const done = new Set<string>();
+  let remaining = [...weakEntities];
+  while (remaining.length > 0) {
+    const ready = remaining.filter((w) =>
+      [...(ownersOf.get(w.id) ?? [])].every((o) => done.has(o)),
+    );
+    // Cycle: no weak entity is ready -> take the first one to guarantee progress
+    const batch = ready.length > 0 ? ready : [remaining[0]];
+    for (const w of batch) {
+      ordered.push(w);
+      done.add(w.id);
+    }
+    remaining = remaining.filter((w) => !done.has(w.id));
+  }
+  return ordered;
+}
+
+let fkGroupCounter = 0;
+function nextFkGroup(): string {
+  fkGroupCounter += 1;
+  return `fk${fkGroupCounter}`;
 }
 
 /**
@@ -97,7 +193,9 @@ export function deriveRelationalModel(
   options?: { includeDerived?: boolean },
 ): RelationalTable[] {
   const includeDerived = options?.includeDerived ?? false;
+  fkGroupCounter = 0;
   const nodeById = new Map(doc.nodes.map((n) => [n.id, n]));
+  const nodeOrder = new Map(doc.nodes.map((n, i) => [n.id, i]));
 
   const entities = doc.nodes.filter((n) => n.type === 'entity');
   const strongEntities = entities.filter((n) => !n.isWeak);
@@ -169,29 +267,31 @@ export function deriveRelationalModel(
     tables.push(table);
   }
 
-  // Resolve identifying relationships for weak entities (supports chained weak entities)
-  for (const weak of weakEntities) {
+  // Resolve identifying relationships for weak entities (supports chained weak entities).
+  // Weak entities are processed owners-first so that a chained weak entity migrates
+  // the complete (already extended) key of its weak owner.
+  const orderedWeakEntities = orderWeakEntitiesByOwnership(
+    weakEntities,
+    relationships,
+    doc.edges,
+    nodeById,
+    nodeOrder,
+  );
+  for (const weak of orderedWeakEntities) {
     const weakTable = tableByEntityId.get(weak.id);
     if (!weakTable) continue;
 
     for (const rel of relationships) {
       if (!rel.isIdentifying) continue;
 
-      const relEdges = doc.edges.filter(
-        (e) => e.sourceId === rel.id || e.targetId === rel.id,
+      const connectedToWeak = doc.edges.some(
+        (e) =>
+          (e.sourceId === rel.id && e.targetId === weak.id) ||
+          (e.targetId === rel.id && e.sourceId === weak.id),
       );
-      const connectedEntities = relEdges
-        .map((e) => {
-          const otherId = e.sourceId === rel.id ? e.targetId : e.sourceId;
-          return nodeById.get(otherId);
-        })
-        .filter((n): n is ErmNode => n?.type === 'entity');
+      if (!connectedToWeak) continue;
 
-      if (!connectedEntities.some((e) => e.id === weak.id)) {
-        continue;
-      }
-
-      const owners = connectedEntities.filter((e) => e.id !== weak.id);
+      const owners = getIdentifyingOwners(weak, rel, doc.edges, nodeById, nodeOrder);
       if (owners.length === 0) continue;
 
       handledRelationshipIds.add(rel.id);
@@ -201,14 +301,23 @@ export function deriveRelationalModel(
         if (!ownerTable) continue;
 
         const ownerPks = getPrimaryKeyColumns(ownerTable);
-        const migratedCols: RelationalColumn[] = ownerPks.map((pk) => ({
-          name: makeUniqueColumnName(weakTable.columns, pk.name, ownerTable.name),
-          isPrimaryKey: true,
-          isForeignKey: true,
-          referencesTable: ownerTable.name,
-          referencesColumn: pk.name,
-          isNullable: false,
-        }));
+        const group = nextFkGroup();
+        const migratedCols: RelationalColumn[] = [];
+        for (const pk of ownerPks) {
+          migratedCols.push({
+            name: makeUniqueColumnName(
+              [...weakTable.columns, ...migratedCols],
+              pk.name,
+              ownerTable.name,
+            ),
+            isPrimaryKey: true,
+            isForeignKey: true,
+            referencesTable: ownerTable.name,
+            referencesColumn: pk.name,
+            fkGroup: group,
+            isNullable: false,
+          });
+        }
         // Prepend owner PKs before partial key for clean composite PK ordering
         weakTable.columns.unshift(...migratedCols);
       }
@@ -252,6 +361,7 @@ export function deriveRelationalModel(
         const targetTable = tableByEntityId.get(entity.id);
         if (!targetTable) return;
         const pks = getPrimaryKeyColumns(targetTable);
+        const group = nextFkGroup();
         for (const pk of pks) {
           const prefix = edge.role?.trim() || `${targetTable.name}_${idx + 1}`;
           junctionCols.push({
@@ -260,6 +370,7 @@ export function deriveRelationalModel(
             isForeignKey: true,
             referencesTable: targetTable.name,
             referencesColumn: pk.name,
+            fkGroup: group,
             isNullable: false,
           });
         }
@@ -294,6 +405,7 @@ export function deriveRelationalModel(
         const targetTable = tableByEntityId.get(entity.id);
         if (!targetTable) return;
         const pks = getPrimaryKeyColumns(targetTable);
+        const group = nextFkGroup();
         for (const pk of pks) {
           const prefix = edge.role?.trim() || `${targetTable.name}_${idx + 1}`;
           junctionCols.push({
@@ -302,6 +414,7 @@ export function deriveRelationalModel(
             isForeignKey: true,
             referencesTable: targetTable.name,
             referencesColumn: pk.name,
+            fkGroup: group,
             isNullable: false,
           });
         }
@@ -334,6 +447,7 @@ export function deriveRelationalModel(
       if (!fkTable || !refTable) continue;
 
       const refPks = getPrimaryKeyColumns(refTable);
+      const group = nextFkGroup();
       for (const pk of refPks) {
         const prefix = fkSide.edge.role?.trim() || refTable.name;
         fkTable.columns.push({
@@ -342,6 +456,7 @@ export function deriveRelationalModel(
           isForeignKey: true,
           referencesTable: refTable.name,
           referencesColumn: pk.name,
+          fkGroup: group,
           isNullable: !fkSide.edge.isTotalParticipation,
         });
       }
@@ -367,6 +482,7 @@ export function deriveRelationalModel(
       if (!fkTable || !refTable) continue;
 
       const refPks = getPrimaryKeyColumns(refTable);
+      const group = nextFkGroup();
       for (const pk of refPks) {
         const prefix = fkSide.edge.role?.trim() || refTable.name;
         fkTable.columns.push({
@@ -375,6 +491,7 @@ export function deriveRelationalModel(
           isForeignKey: true,
           referencesTable: refTable.name,
           referencesColumn: pk.name,
+          fkGroup: group,
           isNullable: !fkSide.edge.isTotalParticipation,
         });
       }
@@ -397,12 +514,14 @@ export function deriveRelationalModel(
     if (!entityTable) continue;
 
     const entityPks = getPrimaryKeyColumns(entityTable);
+    const mvGroup = nextFkGroup();
     const cols: RelationalColumn[] = entityPks.map((pk) => ({
       name: pk.name,
       isPrimaryKey: true,
       isForeignKey: true,
       referencesTable: entityTable.name,
       referencesColumn: pk.name,
+      fkGroup: mvGroup,
       isNullable: false,
     }));
 

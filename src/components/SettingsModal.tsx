@@ -17,11 +17,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
   const [draft, setDraft] = useState<AppSettings>(appSettings);
 
+  // Only reset the draft when the dialog opens; later store changes (e.g. async settings
+  // load) must not discard what the user is currently editing.
   useEffect(() => {
     if (isOpen) {
-      setDraft(appSettings);
+      setDraft(useEditorStore.getState().appSettings);
     }
-  }, [isOpen, appSettings]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -32,7 +34,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
       window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   const handleSave = () => {
-    updateAppSettings(draft);
+    // Keep the current recent-files list; the draft only holds a snapshot from opening time
+    updateAppSettings({
+      ...draft,
+      recentFiles: useEditorStore.getState().appSettings.recentFiles,
+    });
     onClose();
   };
 

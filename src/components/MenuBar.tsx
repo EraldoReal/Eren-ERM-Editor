@@ -200,56 +200,74 @@ export async function saveErmFile(saveAs = false): Promise<boolean> {
   }
 }
 
-export async function exportErmSvg(): Promise<void> {
+function reportExportError(err: unknown): void {
   const state = useEditorStore.getState();
-  const doc = state.getActiveTab().document;
-  const lang = state.appSettings.language;
-  const svg = renderErmToSvgString(doc, { darkMode: getIsDarkTheme(), padding: 40 });
-  const baseName = (doc.name || 'erm-diagram').replace(/[^\w\-äöüÄÖÜß ]+/g, '_');
-  const saved = await getPlatformAdapter().saveFileDialog(svg, {
-    title: translate(lang, 'menu.file.exportSvg'),
-    defaultName: `${baseName}.svg`,
-    filters: [{ name: 'SVG', extensions: ['svg'] }],
-    mimeType: 'image/svg+xml',
-  });
-  if (saved) {
-    state.showToast(translate(lang, 'toast.exportedSvg'), 'success');
+  if (err instanceof DOMException && err.name === 'AbortError') return;
+  state.showToast(err instanceof Error ? err.message : String(err), 'error');
+}
+
+export async function exportErmSvg(): Promise<void> {
+  try {
+    const state = useEditorStore.getState();
+    const doc = state.getActiveTab().document;
+    const lang = state.appSettings.language;
+    const svg = renderErmToSvgString(doc, { darkMode: getIsDarkTheme(), padding: 40 });
+    const baseName = (doc.name || 'erm-diagram').replace(/[^\w\-äöüÄÖÜß ]+/g, '_');
+    const saved = await getPlatformAdapter().saveFileDialog(svg, {
+      title: translate(lang, 'menu.file.exportSvg'),
+      defaultName: `${baseName}.svg`,
+      filters: [{ name: 'SVG', extensions: ['svg'] }],
+      mimeType: 'image/svg+xml',
+    });
+    if (saved) {
+      state.showToast(translate(lang, 'toast.exportedSvg'), 'success');
+    }
+  } catch (err) {
+    reportExportError(err);
   }
 }
 
 export async function exportErmPng(scale: 1 | 2 | 3): Promise<void> {
-  const state = useEditorStore.getState();
-  const doc = state.getActiveTab().document;
-  const lang = state.appSettings.language;
-  const blob = await renderErmToPngBlob(doc, scale, { darkMode: getIsDarkTheme() });
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  const baseName = (doc.name || 'erm-diagram').replace(/[^\w\-äöüÄÖÜß ]+/g, '_');
-  const saved = await getPlatformAdapter().exportBinaryFile(bytes, {
-    title: translate(lang, 'menu.file.exportPng2x'),
-    defaultName: `${baseName}-${scale}x.png`,
-    filters: [{ name: 'PNG', extensions: ['png'] }],
-    mimeType: 'image/png',
-  });
-  if (saved) {
-    state.showToast(translate(lang, 'toast.exportedPng'), 'success');
+  try {
+    const state = useEditorStore.getState();
+    const doc = state.getActiveTab().document;
+    const lang = state.appSettings.language;
+    const blob = await renderErmToPngBlob(doc, scale, { darkMode: getIsDarkTheme() });
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const baseName = (doc.name || 'erm-diagram').replace(/[^\w\-äöüÄÖÜß ]+/g, '_');
+    const saved = await getPlatformAdapter().exportBinaryFile(bytes, {
+      title: translate(lang, 'menu.file.exportPng2x'),
+      defaultName: `${baseName}-${scale}x.png`,
+      filters: [{ name: 'PNG', extensions: ['png'] }],
+      mimeType: 'image/png',
+    });
+    if (saved) {
+      state.showToast(translate(lang, 'toast.exportedPng'), 'success');
+    }
+  } catch (err) {
+    reportExportError(err);
   }
 }
 
 export async function exportErmSql(): Promise<void> {
-  const state = useEditorStore.getState();
-  const doc = state.getActiveTab().document;
-  const lang = state.appSettings.language;
-  const tables = deriveRelationalModel(doc);
-  const sql = generateSqlFromRelationalModel(tables);
-  const baseName = (doc.name || 'erm-schema').replace(/[^\w\-äöüÄÖÜß ]+/g, '_');
-  const saved = await getPlatformAdapter().saveFileDialog(sql, {
-    title: 'SQL-DDL',
-    defaultName: `${baseName}.sql`,
-    filters: [{ name: 'SQL', extensions: ['sql'] }],
-    mimeType: 'text/sql',
-  });
-  if (saved) {
-    state.showToast(translate(lang, 'toast.saved'), 'success');
+  try {
+    const state = useEditorStore.getState();
+    const doc = state.getActiveTab().document;
+    const lang = state.appSettings.language;
+    const tables = deriveRelationalModel(doc);
+    const sql = generateSqlFromRelationalModel(tables);
+    const baseName = (doc.name || 'erm-schema').replace(/[^\w\-äöüÄÖÜß ]+/g, '_');
+    const saved = await getPlatformAdapter().saveFileDialog(sql, {
+      title: 'SQL-DDL',
+      defaultName: `${baseName}.sql`,
+      filters: [{ name: 'SQL', extensions: ['sql'] }],
+      mimeType: 'text/sql',
+    });
+    if (saved) {
+      state.showToast(translate(lang, 'toast.saved'), 'success');
+    }
+  } catch (err) {
+    reportExportError(err);
   }
 }
 
@@ -670,6 +688,43 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                     setPan(0, 0);
                   })
                 }
+              />
+              <MenuDivider />
+              <MenuItem
+                label={
+                  appSettings.language === 'de'
+                    ? `Programmoberfläche vergrößern (${Math.round((appSettings.uiScale ?? 1) * 100)}%)`
+                    : `Zoom UI In (${Math.round((appSettings.uiScale ?? 1) * 100)}%)`
+                }
+                onClick={() =>
+                  closeAndRun(() =>
+                    updateAppSettings({
+                      uiScale: Math.min(1.4, Number(((appSettings.uiScale ?? 1) + 0.1).toFixed(2))),
+                    }),
+                  )
+                }
+              />
+              <MenuItem
+                label={
+                  appSettings.language === 'de'
+                    ? 'Programmoberfläche verkleinern'
+                    : 'Zoom UI Out'
+                }
+                onClick={() =>
+                  closeAndRun(() =>
+                    updateAppSettings({
+                      uiScale: Math.max(0.8, Number(((appSettings.uiScale ?? 1) - 0.1).toFixed(2))),
+                    }),
+                  )
+                }
+              />
+              <MenuItem
+                label={
+                  appSettings.language === 'de'
+                    ? 'Programmoberfläche 100%'
+                    : 'Reset UI Scale (100%)'
+                }
+                onClick={() => closeAndRun(() => updateAppSettings({ uiScale: 1 }))}
               />
               <MenuDivider />
               <MenuItem

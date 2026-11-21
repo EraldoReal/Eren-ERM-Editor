@@ -309,4 +309,34 @@ describe('i18n', () => {
     expect(t('de', 'imprint.legal')).toContain('§ 5 DDG / § 18 Abs. 2 MStV');
     expect(t('de', 'imprint.legal')).toContain('info@best-tools.app');
   });
+
+  it('keeps zoom and pan when undoing and redoing', () => {
+    const store = useEditorStore.getState();
+    store.addNode('entity', 100, 100, 'A');
+    useEditorStore.getState().setZoom(1.5);
+    useEditorStore.getState().setPan(120, -40);
+    useEditorStore.getState().undo();
+    let doc = useEditorStore.getState().getActiveTab().document;
+    expect(doc.zoom).toBe(1.5);
+    expect(doc.panX).toBe(120);
+    expect(doc.panY).toBe(-40);
+    useEditorStore.getState().redo();
+    doc = useEditorStore.getState().getActiveTab().document;
+    expect(doc.zoom).toBe(1.5);
+    expect(doc.panX).toBe(120);
+  });
+
+  it('merges rapid role edits of one edge into a single undo step', () => {
+    resetStore();
+    const a = useEditorStore.getState().addNode('entity', 0, 0, 'A');
+    const r = useEditorStore.getState().addNode('relationship', 200, 0, 'R');
+    const edge = useEditorStore.getState().addEdge(a.id, r.id, '1')!;
+    const before = useEditorStore.getState().getActiveTab().undoStack.length;
+    for (const role of ['K', 'Ku', 'Kun', 'Kund', 'Kunde']) {
+      useEditorStore.getState().updateEdge(edge.id, { role });
+    }
+    const tab = useEditorStore.getState().getActiveTab();
+    expect(tab.undoStack.length).toBe(before + 1);
+    expect(tab.document.edges[0].role).toBe('Kunde');
+  });
 });

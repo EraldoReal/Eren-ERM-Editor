@@ -120,13 +120,8 @@ function renderAttributeSvg(
     `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" fill="${escapeXml(textColor)}" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="${fontSize}" font-weight="${fontWeight}"${fontStyle}${textDecoration}>${escapeXml(label)}</text>`,
   );
 
-  if (isPrimaryKey) {
-    const lineHalfW = Math.min(rx - 10, Math.max(16, label.length * fontSize * 0.28));
-    const lineY = cy + fontSize * 0.65;
-    parts.push(
-      `<line x1="${cx - lineHalfW}" y1="${lineY}" x2="${cx + lineHalfW}" y2="${lineY}" stroke="${escapeXml(textColor)}" stroke-width="1.5" />`,
-    );
-  } else if (isForeignKey) {
+  // Primary keys are underlined via text-decoration; drawing an extra line would double it.
+  if (isForeignKey && !isPrimaryKey) {
     const lineHalfW = Math.min(rx - 10, Math.max(16, label.length * fontSize * 0.28));
     const lineY = cy + fontSize * 0.65;
     parts.push(

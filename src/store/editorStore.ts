@@ -160,6 +160,8 @@ export interface EditorState {
 
 const MAX_UNDO_STACK = 100;
 const MAX_RECENT_FILES = 10;
+const ROLE_EDIT_COALESCE_MS = 1500;
+let lastRoleEdit: { edgeId: string; time: number } | null = null;
 const MIN_NODE_WIDTH = 40;
 const MIN_NODE_HEIGHT = 28;
 
@@ -215,6 +217,11 @@ function createDefaultTabFromSettings(settings: AppSettings, name?: string): Pro
     snapToGrid: settings.defaultSnapToGrid,
   });
   return createProjectTab(doc);
+}
+
+/** Undo/redo must not move the viewport: keep the current zoom and pan. */
+function keepViewport(restored: ErmDocument, current: ErmDocument): ErmDocument {
+  return { ...restored, zoom: current.zoom, panX: current.panX, panY: current.panY };
 }
 
 function pushToUndo(stack: ErmDocument[], doc: ErmDocument): ErmDocument[] {
@@ -688,13 +695,25 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   updateEdge: (id, patch) => {
+    // Typing a role fires one update per keystroke; merge rapid edits of the same
+    // edge's role into a single undo step instead of flooding the undo stack.
+    const keys = Object.keys(patch);
+    const isRoleOnly = keys.length === 1 && keys[0] === 'role';
+    const now = Date.now();
+    const coalesce =
+      isRoleOnly &&
+      lastRoleEdit !== null &&
+      lastRoleEdit.edgeId === id &&
+      now - lastRoleEdit.time < ROLE_EDIT_COALESCE_MS;
+    lastRoleEdit = isRoleOnly ? { edgeId: id, time: now } : null;
+
     set((state) =>
       updateActiveTab(state, (tab) => {
         const target = tab.document.edges.find((e) => e.id === id);
         if (!target) return tab;
         return {
           ...tab,
-          undoStack: pushToUndo(tab.undoStack, tab.document),
+          undoStack: coalesce ? tab.undoStack : pushToUndo(tab.undoStack, tab.document),
           redoStack: [],
           isDirty: true,
           document: {
@@ -863,7 +882,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return {
         ...updateActiveTab(state, (tab) => ({
           ...tab,
-          document: cloneDocument(previous),
+          document: keepViewport(cloneDocument(previous), tab.document),
           undoStack: nextUndo,
           redoStack: [...tab.redoStack, cloneDocument(tab.document)],
           isDirty: true,
@@ -885,7 +904,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return {
         ...updateActiveTab(state, (tab) => ({
           ...tab,
-          document: cloneDocument(nextDoc),
+          document: keepViewport(cloneDocument(nextDoc), tab.document),
           undoStack: pushToUndo(tab.undoStack, tab.document),
           redoStack: nextRedo,
           isDirty: true,

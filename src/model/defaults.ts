@@ -31,6 +31,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   defaultShowGrid: true,
   defaultGridStyle: 'dots',
   defaultSnapToGrid: true,
+  uiScale: 1,
   recentFiles: [],
 };
 

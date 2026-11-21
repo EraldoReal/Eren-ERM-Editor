@@ -48,6 +48,7 @@ interface FileSystemWritableFileStreamLike {
 
 interface FileSystemFileHandleLike {
   name: string;
+  isSameEntry?(other: FileSystemFileHandleLike): Promise<boolean>;
   getFile(): Promise<File>;
   createWritable(): Promise<FileSystemWritableFileStreamLike>;
 }
@@ -179,6 +180,32 @@ export class WebPlatformAdapter implements PlatformAdapter {
   readonly isDesktop = false;
   private readonly fileHandles = new Map<string, FileSystemFileHandleLike>();
 
+  /**
+   * Registers a handle under a unique key. Browser handles only expose the bare file
+   * name, so two files with the same name in different folders get distinct keys
+   * ("diagram.erm", "diagram.erm (2)") instead of overwriting each other.
+   */
+  private async registerHandle(handle: FileSystemFileHandleLike): Promise<string> {
+    let key = handle.name;
+    let counter = 2;
+    while (this.fileHandles.has(key)) {
+      const existing = this.fileHandles.get(key)!;
+      let same = existing === handle;
+      if (!same && typeof existing.isSameEntry === 'function') {
+        try {
+          same = await existing.isSameEntry(handle);
+        } catch {
+          same = false;
+        }
+      }
+      if (same) break;
+      key = `${handle.name} (${counter})`;
+      counter += 1;
+    }
+    this.fileHandles.set(key, handle);
+    return key;
+  }
+
   async openFileDialog(options?: OpenDialogOptions): Promise<OpenedFile | null> {
     if (typeof window === 'undefined' || typeof document === 'undefined') {
       return null;
@@ -197,11 +224,11 @@ export class WebPlatformAdapter implements PlatformAdapter {
         }
         const file = await handle.getFile();
         const opened = await readBrowserFile(file);
-        this.fileHandles.set(handle.name, handle);
-        cacheRecentFile(handle.name, opened.content);
+        const key = await this.registerHandle(handle);
+        cacheRecentFile(key, opened.content);
         return {
           ...opened,
-          path: handle.name,
+          path: key,
         };
       } catch (error) {
         if (isAbortError(error)) {
@@ -239,9 +266,9 @@ export class WebPlatformAdapter implements PlatformAdapter {
         const writable = await handle.createWritable();
         await writable.write(content);
         await writable.close();
-        this.fileHandles.set(handle.name, handle);
-        cacheRecentFile(handle.name, content);
-        return handle.name;
+        const key = await this.registerHandle(handle);
+        cacheRecentFile(key, content);
+        return key;
       } catch (error) {
         if (isAbortError(error)) {
           return null;
