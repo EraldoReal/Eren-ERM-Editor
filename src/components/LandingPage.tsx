@@ -831,6 +831,89 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </a>
           </div>
         </section>
+
+        {/* Discreet Collapsible Changelog */}
+        <section id="changelog">
+          <details className="group bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-lg shadow-2xs">
+            <summary className="list-none cursor-pointer px-4 py-2.5 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 select-none">
+              <div className="flex items-center gap-2">
+                <span className="font-mono font-semibold text-slate-700 dark:text-slate-300">
+                  Changelog
+                </span>
+                <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-[11px] text-slate-600 dark:text-slate-300">
+                  v1.0.0
+                </span>
+                <span className="hidden sm:inline text-slate-400 dark:text-slate-500">
+                  — {isDe ? 'Versionshinweise & Änderungen anzeigen' : 'Show release notes & changes'}
+                </span>
+              </div>
+              <span className="font-mono text-[11px] text-slate-400 group-open:rotate-180 transition-transform">
+                ▼
+              </span>
+            </summary>
+
+            <div className="px-4 pb-4 pt-2 border-t border-slate-200 dark:border-slate-800 space-y-3 text-xs text-slate-600 dark:text-slate-300">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-bold text-slate-900 dark:text-white">v1.0.0</span>
+                  <span className="text-[11px] font-mono text-slate-400">2026-11-21</span>
+                  <span className="text-[11px] px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900">
+                    {isDe ? 'Aktuell' : 'Latest'}
+                  </span>
+                </div>
+                <ul className="list-disc list-inside space-y-1 leading-relaxed">
+                  {isDe ? (
+                    <>
+                      <li>
+                        <strong>Chen- &amp; Min-Max-Notation:</strong> Genormte SVG-Geometrie für
+                        Entitäten, schwache Entitäten, Beziehungen, identifizierende Beziehungen
+                        sowie Attribute (PK, FK/Teilschlüssel, mehrwertig, abgeleitet).
+                      </li>
+                      <li>
+                        <strong>Live-Relationenmodell &amp; SQL:</strong> Automatische Ableitung
+                        inkl. <code>n:m</code>-Zwischentabellen, <code>↑</code>-Fremdschlüsselpfeilen
+                        und <code>CREATE TABLE</code>-Vorschau.
+                      </li>
+                      <li>
+                        <strong>Editor-UX &amp; Export:</strong> Multi-Tab-Projekte (<code>.erm</code>),
+                        Auto-Layout für Attribute, Linksklick-Canvas-Panning, UI-Skalierung
+                        (80 %–140 %), 1-Klick-2x-PNG-Screenshot, SVG/PNG/PDF-Export und Dark Mode.
+                      </li>
+                      <li>
+                        <strong>Desktop-Apps (Tauri v2):</strong> Native Builds für macOS
+                        (<code>.dmg</code>) und Windows (<code>.exe</code>) mit integriertem
+                        Auto-Updater unter <em>Hilfe → Nach Updates suchen…</em>.
+                      </li>
+                    </>
+                  ) : (
+                    <>
+                      <li>
+                        <strong>Chen &amp; Min-Max Notation:</strong> Precision SVG geometry for
+                        entities, weak entities, relationships, identifying relationships, and
+                        attributes (PK, FK/partial key, multivalued, derived).
+                      </li>
+                      <li>
+                        <strong>Live Relational Model &amp; SQL:</strong> Automatic schema
+                        derivation with <code>n:m</code> junction tables, <code>↑</code> FK arrows,
+                        and <code>CREATE TABLE</code> preview.
+                      </li>
+                      <li>
+                        <strong>Editor UX &amp; Export:</strong> Multi-tab projects (<code>.erm</code>),
+                        attribute auto-layout, left-drag canvas panning, UI scaling (80%–140%),
+                        1-click 2x PNG screenshot, SVG/PNG/PDF export, and Dark Mode.
+                      </li>
+                      <li>
+                        <strong>Desktop Apps (Tauri v2):</strong> Native builds for macOS
+                        (<code>.dmg</code>) and Windows (<code>.exe</code>) with built-in
+                        auto-updater under <em>Help → Check for Updates…</em>.
+                      </li>
+                    </>
+                  )}
+                </ul>
+              </div>
+            </div>
+          </details>
+        </section>
       </main>
 
       {/* Footer */}
