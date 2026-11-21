@@ -441,6 +441,26 @@ export const HelpModal: React.FC<HelpModalProps> = ({
                     ? 'ERM-Editor verarbeitet alle Diagramme, Dateien und Einstellungen ausschließlich lokal in Ihrem Browser bzw. auf Ihrem Gerät. Es findet keine Übertragung an externe Server statt.'
                     : 'ERM-Editor processes all diagrams, files, and settings exclusively locally in your browser or on your device. No data is transmitted to external servers.'}
                 </p>
+                <h5 className="font-semibold text-xs text-slate-800 dark:text-slate-100 pt-2">
+                  {isDe
+                    ? 'Webanalyse durch selbstgehostetes Umami'
+                    : 'Web Analytics via Self-Hosted Umami'}
+                </h5>
+                <p>
+                  {isDe
+                    ? 'Wir nutzen auf dieser Website das Open-Source-Analysetool Umami, um die Nutzung unserer Website statistisch auszuwerten und unser Angebot zu verbessern. Umami wird vollständig auf unseren eigenen Servern in Deutschland betrieben.'
+                    : 'We use the open-source analytics tool Umami on this website to statistically evaluate website usage and improve our service. Umami is operated entirely on our own servers in Germany.'}
+                </p>
+                <p>
+                  {isDe
+                    ? 'Das Tool verwendet keine Cookies und speichert keine personenbezogenen Daten. Ihre IP-Adresse wird nicht gespeichert, sondern unmittelbar nach dem Aufruf anonymisiert gehasht. Ein Rückschluss auf Ihre Person oder ein seitenübergreifendes Tracking (Cross-Site-Tracking) ist technisch ausgeschlossen.'
+                    : 'The tool does not use cookies and does not store any personal data. Your IP address is not stored, but instead anonymized via hashing immediately upon access. Any identification of your person or cross-site tracking is technically impossible.'}
+                </p>
+                <p>
+                  {isDe
+                    ? 'Rechtsgrundlage für die Datenverarbeitung ist unser berechtigtes Interesse an der bedarfsgerechten Gestaltung und Optimierung unseres Webangebots gemäß Art. 6 Abs. 1 lit. f DSGVO.'
+                    : 'The legal basis for data processing is our legitimate interest in the demand-oriented design and optimization of our website pursuant to Art. 6 (1) (f) GDPR.'}
+                </p>
               </div>
             </div>
           )}
@@ -487,13 +507,34 @@ export const HelpModal: React.FC<HelpModalProps> = ({
                 }`}
               >
                 <h4 className="font-semibold text-sm text-slate-800 dark:text-slate-100">
-                  Hinweis zu Datenschutz &amp; lokaler Verarbeitung
+                  {isDe
+                    ? 'Hinweis zu Datenschutz & lokaler Verarbeitung'
+                    : 'Privacy & Local Processing Notice'}
                 </h4>
                 <p>
-                  ERM-Editor verarbeitet alle ER-Diagramme, Dateien und Einstellungen
-                  ausschließlich lokal in Ihrem Browser bzw. auf Ihrem Gerät. Es findet
-                  keine Übertragung an externe Server statt, alle Schriftarten sind lokal
-                  eingebunden und es werden keine Tracking-Cookies eingesetzt.
+                  {isDe
+                    ? 'ERM-Editor verarbeitet alle ER-Diagramme, Dateien und Einstellungen ausschließlich lokal in Ihrem Browser bzw. auf Ihrem Gerät. Es findet keine Übertragung an externe Server statt, alle Schriftarten sind lokal eingebunden und es werden keine Tracking-Cookies eingesetzt.'
+                    : 'ERM-Editor processes all ER diagrams, files, and settings exclusively locally in your browser or on your device. No data is transmitted to external servers, all fonts are bundled locally, and no tracking cookies are used.'}
+                </p>
+                <h5 className="font-semibold text-xs text-slate-800 dark:text-slate-100 pt-2">
+                  {isDe
+                    ? 'Webanalyse durch selbstgehostetes Umami'
+                    : 'Web Analytics via Self-Hosted Umami'}
+                </h5>
+                <p>
+                  {isDe
+                    ? 'Wir nutzen auf dieser Website das Open-Source-Analysetool Umami, um die Nutzung unserer Website statistisch auszuwerten und unser Angebot zu verbessern. Umami wird vollständig auf unseren eigenen Servern in Deutschland betrieben.'
+                    : 'We use the open-source analytics tool Umami on this website to statistically evaluate website usage and improve our service. Umami is operated entirely on our own servers in Germany.'}
+                </p>
+                <p>
+                  {isDe
+                    ? 'Das Tool verwendet keine Cookies und speichert keine personenbezogenen Daten. Ihre IP-Adresse wird nicht gespeichert, sondern unmittelbar nach dem Aufruf anonymisiert gehasht. Ein Rückschluss auf Ihre Person oder ein seitenübergreifendes Tracking (Cross-Site-Tracking) ist technisch ausgeschlossen.'
+                    : 'The tool does not use cookies and does not store any personal data. Your IP address is not stored, but instead anonymized via hashing immediately upon access. Any identification of your person or cross-site tracking is technically impossible.'}
+                </p>
+                <p>
+                  {isDe
+                    ? 'Rechtsgrundlage für die Datenverarbeitung ist unser berechtigtes Interesse an der bedarfsgerechten Gestaltung und Optimierung unseres Webangebots gemäß Art. 6 Abs. 1 lit. f DSGVO.'
+                    : 'The legal basis for data processing is our legitimate interest in the demand-oriented design and optimization of our website pursuant to Art. 6 (1) (f) GDPR.'}
                 </p>
               </div>
             </div>
