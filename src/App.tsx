@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
+import { BlogIndexPage, BlogPostPage } from './components/BlogPages';
 import { HelpModal, type HelpTab } from './components/HelpModal';
 import { LandingPage } from './components/LandingPage';
 import {
@@ -470,7 +471,49 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [settingsOpen, printOpen, helpOpen, updateOpen]);
 
-  // Browser routing: SEO subpages and LandingPage (Tauri ALWAYS opens directly in Editor)
+  // Browser routing: Blog, SEO subpages and LandingPage (Tauri ALWAYS opens directly in Editor)
+  if (!isTauriEnvironment() && (currentPath === '/blog' || currentPath === '/blog/')) {
+    return (
+      <div className={themeClass}>
+        <BlogIndexPage
+          onNavigate={navigateTo}
+          onLaunchEditor={handleLaunchEditor}
+          onOpenImprint={() => {
+            setHelpTab('imprint');
+            setHelpOpen(true);
+          }}
+        />
+        <HelpModal
+          isOpen={helpOpen}
+          onClose={() => setHelpOpen(false)}
+          initialTab={helpTab}
+        />
+      </div>
+    );
+  }
+
+  if (!isTauriEnvironment() && currentPath.startsWith('/blog/')) {
+    const slug = currentPath.slice('/blog/'.length).replace(/\/+$/, '');
+    return (
+      <div className={themeClass}>
+        <BlogPostPage
+          slug={slug}
+          onNavigate={navigateTo}
+          onLaunchEditor={handleLaunchEditor}
+          onOpenImprint={() => {
+            setHelpTab('imprint');
+            setHelpOpen(true);
+          }}
+        />
+        <HelpModal
+          isOpen={helpOpen}
+          onClose={() => setHelpOpen(false)}
+          initialTab={helpTab}
+        />
+      </div>
+    );
+  }
+
   if (!isTauriEnvironment() && SEO_ROUTES.includes(currentPath as SeoPageRoute)) {
     return (
       <div className={themeClass}>

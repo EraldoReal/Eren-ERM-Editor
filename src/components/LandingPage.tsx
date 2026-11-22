@@ -992,6 +992,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <span>ERM-Editor · Chen &amp; Min-Max ERM · Eren Kazokoglu</span>
           <div className="flex items-center gap-4">
             <a
+              href="/blog"
+              onClick={(e) => {
+                if (onNavigate) {
+                  e.preventDefault();
+                  onNavigate('/blog');
+                }
+              }}
+              className="hover:text-slate-900 dark:hover:text-white underline underline-offset-4"
+            >
+              Blog
+            </a>
+            <a
               href={GITHUB_REPO_URL}
               target="_blank"
               rel="noopener noreferrer"
