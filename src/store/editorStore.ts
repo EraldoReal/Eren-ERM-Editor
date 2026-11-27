@@ -99,7 +99,14 @@ export interface EditorState {
   // Node CRUD
   addNode: (type: ErmNodeType, x: number, y: number, label?: string) => ErmNode;
   moveNodes: (moves: NodeMove[], pushUndo?: boolean) => void;
-  resizeNode: (id: string, width: number, height: number, x?: number, y?: number) => void;
+  resizeNode: (
+    id: string,
+    width: number,
+    height: number,
+    x?: number,
+    y?: number,
+    pushUndo?: boolean,
+  ) => void;
   updateNodeLabel: (id: string, label: string) => void;
   updateNodeStyle: (id: string, style: Partial<ErmNodeStyle>) => void;
   toggleWeakEntity: (id: string) => void;
@@ -499,7 +506,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     );
   },
 
-  resizeNode: (id, width, height, x, y) => {
+  resizeNode: (id, width, height, x, y, pushUndo = true) => {
     const clampedWidth = Math.max(MIN_NODE_WIDTH, width);
     const clampedHeight = Math.max(MIN_NODE_HEIGHT, height);
 
@@ -519,8 +526,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         }
         return {
           ...tab,
-          undoStack: pushToUndo(tab.undoStack, tab.document),
-          redoStack: [],
+          undoStack: pushUndo ? pushToUndo(tab.undoStack, tab.document) : tab.undoStack,
+          redoStack: pushUndo ? [] : tab.redoStack,
           isDirty: true,
           document: {
             ...tab.document,

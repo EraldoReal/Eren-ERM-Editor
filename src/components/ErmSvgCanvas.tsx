@@ -22,6 +22,8 @@ export interface MarqueeBox {
   height: number;
 }
 
+export type ResizeCorner = 'nw' | 'ne' | 'se' | 'sw';
+
 export interface ErmSvgCanvasProps {
   document: ErmDocument;
   darkMode: boolean;
@@ -39,6 +41,11 @@ export interface ErmSvgCanvasProps {
   onNodePointerEnter: (node: ErmNode) => void;
   onNodePointerLeave: (node: ErmNode) => void;
   onHandlePointerDown: (e: React.PointerEvent<SVGCircleElement>, node: ErmNode) => void;
+  onResizeHandlePointerDown: (
+    e: React.PointerEvent<SVGRectElement>,
+    node: ErmNode,
+    corner: ResizeCorner,
+  ) => void;
   onEdgePointerDown: (e: React.PointerEvent<SVGGElement>, edge: ErmEdge) => void;
   onEdgeContextMenu: (e: React.MouseEvent<SVGGElement>, edge: ErmEdge) => void;
 }
@@ -64,6 +71,7 @@ export const ErmSvgCanvas: React.FC<ErmSvgCanvasProps> = ({
   onNodePointerEnter,
   onNodePointerLeave,
   onHandlePointerDown,
+  onResizeHandlePointerDown,
   onEdgePointerDown,
   onEdgeContextMenu,
 }) => {
@@ -472,7 +480,7 @@ export const ErmSvgCanvas: React.FC<ErmSvgCanvasProps> = ({
                 </>
               )}
 
-              {/* Connection handles on selected node */}
+              {/* Connection & Resize handles on selected node */}
               {isSelected && selectedNodeIds.length === 1 && !isEditing && (
                 <g>
                   {[
@@ -491,6 +499,48 @@ export const ErmSvgCanvas: React.FC<ErmSvgCanvasProps> = ({
                       strokeWidth={2}
                       className="cursor-crosshair"
                       onPointerDown={(e) => onHandlePointerDown(e, node)}
+                    />
+                  ))}
+                  {(
+                    [
+                      {
+                        corner: 'nw',
+                        rx: node.x - 4,
+                        ry: node.y - 4,
+                        cursor: 'cursor-nwse-resize',
+                      },
+                      {
+                        corner: 'ne',
+                        rx: node.x + node.width - 4,
+                        ry: node.y - 4,
+                        cursor: 'cursor-nesw-resize',
+                      },
+                      {
+                        corner: 'se',
+                        rx: node.x + node.width - 4,
+                        ry: node.y + node.height - 4,
+                        cursor: 'cursor-nwse-resize',
+                      },
+                      {
+                        corner: 'sw',
+                        rx: node.x - 4,
+                        ry: node.y + node.height - 4,
+                        cursor: 'cursor-nesw-resize',
+                      },
+                    ] as const
+                  ).map((rh) => (
+                    <rect
+                      key={rh.corner}
+                      x={rh.rx}
+                      y={rh.ry}
+                      width={8}
+                      height={8}
+                      rx={1.5}
+                      fill="#ffffff"
+                      stroke="#2563eb"
+                      strokeWidth={1.75}
+                      className={rh.cursor}
+                      onPointerDown={(e) => onResizeHandlePointerDown(e, node, rh.corner)}
                     />
                   ))}
                 </g>

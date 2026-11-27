@@ -21,6 +21,7 @@ import {
   WORKSPACE_WIDTH,
   type MarqueeBox,
   type PreviewEdgeState,
+  type ResizeCorner,
 } from './ErmSvgCanvas.tsx';
 
 export interface WorkspaceCanvasProps {
@@ -58,6 +59,18 @@ type InteractionState =
       sourceNodeId: string;
       cursorX: number;
       cursorY: number;
+    }
+  | {
+      mode: 'resize-node';
+      nodeId: string;
+      corner: ResizeCorner;
+      startCanvasX: number;
+      startCanvasY: number;
+      initialX: number;
+      initialY: number;
+      initialWidth: number;
+      initialHeight: number;
+      hasResized: boolean;
     };
 
 function clamp(value: number, min: number, max: number): number {
@@ -92,6 +105,7 @@ export const WorkspaceCanvas: React.FC<WorkspaceCanvasProps> = ({ darkMode }) =>
   const setEditingNodeId = useEditorStore((s) => s.setEditingNodeId);
   const addNode = useEditorStore((s) => s.addNode);
   const moveNodes = useEditorStore((s) => s.moveNodes);
+  const resizeNode = useEditorStore((s) => s.resizeNode);
   const updateNodeLabel = useEditorStore((s) => s.updateNodeLabel);
   const toggleWeakEntity = useEditorStore((s) => s.toggleWeakEntity);
   const toggleIdentifyingRelationship = useEditorStore((s) => s.toggleIdentifyingRelationship);
@@ -489,6 +503,29 @@ export const WorkspaceCanvas: React.FC<WorkspaceCanvasProps> = ({ darkMode }) =>
     });
   };
 
+  const handleResizeHandlePointerDown = (
+    e: React.PointerEvent<SVGRectElement>,
+    node: ErmNode,
+    corner: ResizeCorner,
+  ) => {
+    e.stopPropagation();
+    setContextMenu(null);
+    if (e.button !== 0) return;
+    const pt = clientToCanvas(e.clientX, e.clientY);
+    setInteraction({
+      mode: 'resize-node',
+      nodeId: node.id,
+      corner,
+      startCanvasX: pt.x,
+      startCanvasY: pt.y,
+      initialX: node.x,
+      initialY: node.y,
+      initialWidth: node.width,
+      initialHeight: node.height,
+      hasResized: false,
+    });
+  };
+
   const handleEdgePointerDown = (e: React.PointerEvent<SVGGElement>, edge: ErmEdge) => {
     e.stopPropagation();
     setContextMenu(null);
@@ -564,6 +601,65 @@ export const WorkspaceCanvas: React.FC<WorkspaceCanvasProps> = ({ darkMode }) =>
         setInteraction((prev) =>
           prev.mode === 'connect' ? { ...prev, cursorX: pt.x, cursorY: pt.y } : prev,
         );
+        return;
+      }
+
+      if (interaction.mode === 'resize-node') {
+        const dx = pt.x - interaction.startCanvasX;
+        const dy = pt.y - interaction.startCanvasY;
+        if (!interaction.hasResized && Math.hypot(dx, dy) < 2) return;
+
+        if (!interaction.hasResized) {
+          pushUndoSnapshot();
+          setInteraction((prev) =>
+            prev.mode === 'resize-node' ? { ...prev, hasResized: true } : prev,
+          );
+        }
+
+        const minW = 80;
+        const minH = 40;
+        const rightEdge = interaction.initialX + interaction.initialWidth;
+        const bottomEdge = interaction.initialY + interaction.initialHeight;
+
+        let nextX = interaction.initialX;
+        let nextY = interaction.initialY;
+        let nextW = interaction.initialWidth;
+        let nextH = interaction.initialHeight;
+
+        if (interaction.corner === 'se' || interaction.corner === 'ne') {
+          nextW = clamp(
+            snapValue(interaction.initialWidth + dx, doc.snapToGrid),
+            minW,
+            WORKSPACE_WIDTH - interaction.initialX,
+          );
+        }
+        if (interaction.corner === 'sw' || interaction.corner === 'nw') {
+          const rawX = clamp(
+            snapValue(interaction.initialX + dx, doc.snapToGrid),
+            0,
+            rightEdge - minW,
+          );
+          nextX = rawX;
+          nextW = rightEdge - rawX;
+        }
+        if (interaction.corner === 'se' || interaction.corner === 'sw') {
+          nextH = clamp(
+            snapValue(interaction.initialHeight + dy, doc.snapToGrid),
+            minH,
+            WORKSPACE_HEIGHT - interaction.initialY,
+          );
+        }
+        if (interaction.corner === 'ne' || interaction.corner === 'nw') {
+          const rawY = clamp(
+            snapValue(interaction.initialY + dy, doc.snapToGrid),
+            0,
+            bottomEdge - minH,
+          );
+          nextY = rawY;
+          nextH = bottomEdge - rawY;
+        }
+
+        resizeNode(interaction.nodeId, nextW, nextH, nextX, nextY, false);
       }
     };
 
@@ -755,6 +851,7 @@ export const WorkspaceCanvas: React.FC<WorkspaceCanvasProps> = ({ darkMode }) =>
             }
           }}
           onHandlePointerDown={handleHandlePointerDown}
+          onResizeHandlePointerDown={handleResizeHandlePointerDown}
           onEdgePointerDown={handleEdgePointerDown}
           onEdgeContextMenu={handleEdgeContextMenu}
         />

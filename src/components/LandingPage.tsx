@@ -841,7 +841,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   Changelog
                 </span>
                 <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-[11px] text-slate-600 dark:text-slate-300">
-                  v1.0.2
+                  v1.0.3
                 </span>
                 <span className="hidden sm:inline text-slate-400 dark:text-slate-500">
                   — {isDe ? 'Versionshinweise & Änderungen anzeigen' : 'Show release notes & changes'}
@@ -855,11 +855,32 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <div className="px-4 pb-4 pt-2 border-t border-slate-200 dark:border-slate-800 space-y-4 text-xs text-slate-600 dark:text-slate-300">
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold text-slate-900 dark:text-white">v1.0.2</span>
-                  <span className="text-[11px] font-mono text-slate-400">2026-11-21</span>
+                  <span className="font-mono font-bold text-slate-900 dark:text-white">v1.0.3</span>
+                  <span className="text-[11px] font-mono text-slate-400">2026-11-27</span>
                   <span className="text-[11px] px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900">
                     {isDe ? 'Aktuell' : 'Latest'}
                   </span>
+                </div>
+                <ul className="list-disc list-inside space-y-1 leading-relaxed">
+                  {isDe ? (
+                    <li>
+                      <strong>Größenanpassung für Elemente:</strong> Entitäten, Beziehungen und
+                      Attribute lassen sich jetzt direkt über vier Eck-Anfasser (mit Raster-Snap)
+                      stufenlos vergrößern und verkleinern.
+                    </li>
+                  ) : (
+                    <li>
+                      <strong>Resizable Nodes:</strong> Entities, relationships, and attributes
+                      can now be freely resized using four corner handles (with grid snapping).
+                    </li>
+                  )}
+                </ul>
+              </div>
+
+              <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-bold text-slate-900 dark:text-white">v1.0.2</span>
+                  <span className="text-[11px] font-mono text-slate-400">2026-11-21</span>
                 </div>
                 <ul className="list-disc list-inside space-y-1 leading-relaxed">
                   {isDe ? (
